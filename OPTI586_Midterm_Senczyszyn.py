@@ -38,7 +38,9 @@ df['Surf_N'] = -df['Surf_N']
 print(df.head())
 # print(f"\nSaved inverted normals to {inverted_filename}")
 
-#%% 2 - Calculate PRT Matrices
+#%% 2 - Calculate PRT Matrices for 2 and combine for 3
+
+
 
 def get_prt_matrix(k_in, k_out, eta, n1, n2, is_reflection=False, n_metal=None):
     """
@@ -175,34 +177,85 @@ PA_grid = prepare_grid(PA_list)
 PB_grid = prepare_grid(PB_list)
 PC_grid = prepare_grid(PC_list)
 
+# def plot_prt_pupil(grid, title_suffix, filename):
+#     fig, axes = plt.subplots(3, 3, figsize=(12, 10))
+#     plt.subplots_adjust(hspace=0.4, wspace=0.4)
+#     for i in range(3):
+#         for j in range(3):
+#             ax = axes[i, j]
+#             # Plot Magnitude log10
+#             mag = np.abs(grid[i, j])
+#             # Use small epsilon for log10 to avoid -inf
+#             im = ax.imshow(np.log10(mag + 1e-15), cmap='viridis', extent=[-1, 1, -1, 1])
+#             ax.set_title(f'P[{i+1},{j+1}] Mag')
+#             fig.colorbar(im, ax=ax)
+#     fig.suptitle(f'PRT Pupil Magnitude (log10) - {title_suffix}')
+#     plt.savefig(filename + "_mag.png")
+    
+#     fig, axes = plt.subplots(3, 3, figsize=(12, 10))
+#     plt.subplots_adjust(hspace=0.4, wspace=0.4)
+#     for i in range(3):
+#         for j in range(3):
+#             ax = axes[i, j]
+#             # Plot Phase -180 to 180
+#             phase = np.angle(grid[i, j], deg=True)
+#             im = ax.imshow(phase, cmap='hsv', vmin=-180, vmax=180, extent=[-1, 1, -1, 1])
+#             ax.set_title(f'P[{i+1},{j+1}] Phase')
+#             fig.colorbar(im, ax=ax)
+#     fig.suptitle(f'PRT Pupil Phase (deg) - {title_suffix}')
+#     plt.savefig(filename + "_phase.png")
+
+# plot_prt_pupil(PA_grid, "Lens (PA)", "PA")
+# plot_prt_pupil(PB_grid, "Lens + M1 (PB)", "PB")
+# plot_prt_pupil(PC_grid, "Lens + M1 + M2 (PC)", "PC")
+
+# # Perform the suggested test on one ray (Ray 0)
+# # P_C * k1 should be k8
+# k1_0 = np.array([df[(df['Ray_ID']==0) & (df['Surf_num']==1)]['Ray_L'].values[0],
+#                 df[(df['Ray_ID']==0) & (df['Surf_num']==1)]['Ray_M'].values[0],
+#                 df[(df['Ray_ID']==0) & (df['Surf_num']==1)]['Ray_N'].values[0]])
+# k8_0 = np.array([df[(df['Ray_ID']==0) & (df['Surf_num']==8)]['Ray_L'].values[0],
+#                 df[(df['Ray_ID']==0) & (df['Surf_num']==8)]['Ray_M'].values[0],
+#                 df[(df['Ray_ID']==0) & (df['Surf_num']==8)]['Ray_N'].values[0]])
+
+# pc_0 = PC_list[0]
+# k8_calc = pc_0 @ k1_0
+# print(f"Test Ray 0: Expected k8 = {k8_0}")
+# print(f"Test Ray 0: Calculated k8 = {k8_calc.real}")
+# print(f"Difference: {np.linalg.norm(k8_0 - k8_calc.real)}")
+
+
 def plot_prt_pupil(grid, title_suffix, filename):
-    fig, axes = plt.subplots(3, 3, figsize=(12, 10))
+    # Create a 3x6 grid: 3 rows, 6 columns (left 3 for mag, right 3 for phase)
+    fig, axes = plt.subplots(3, 6, figsize=(24, 10))
     plt.subplots_adjust(hspace=0.4, wspace=0.4)
+    
     for i in range(3):
         for j in range(3):
-            ax = axes[i, j]
-            # Plot Magnitude log10
+            # ---------------------------
+            # 1. Plot Magnitude (Columns 0, 1, 2)
+            # ---------------------------
+            ax_mag = axes[i, j]
             mag = np.abs(grid[i, j])
             # Use small epsilon for log10 to avoid -inf
-            im = ax.imshow(np.log10(mag + 1e-15), cmap='viridis', extent=[-1, 1, -1, 1])
-            ax.set_title(f'P[{i+1},{j+1}] Mag')
-            fig.colorbar(im, ax=ax)
-    fig.suptitle(f'PRT Pupil Magnitude (log10) - {title_suffix}')
-    plt.savefig(filename + "_mag.png")
-    
-    fig, axes = plt.subplots(3, 3, figsize=(12, 10))
-    plt.subplots_adjust(hspace=0.4, wspace=0.4)
-    for i in range(3):
-        for j in range(3):
-            ax = axes[i, j]
-            # Plot Phase -180 to 180
+            im_mag = ax_mag.imshow(np.log10(mag + 1e-15), cmap='viridis', extent=[-1, 1, -1, 1])
+            ax_mag.set_title(f'P[{i+1},{j+1}] Mag')
+            fig.colorbar(im_mag, ax=ax_mag)
+            
+            # ---------------------------
+            # 2. Plot Phase (Columns 3, 4, 5)
+            # ---------------------------
+            ax_phase = axes[i, j + 3]
             phase = np.angle(grid[i, j], deg=True)
-            im = ax.imshow(phase, cmap='hsv', vmin=-180, vmax=180, extent=[-1, 1, -1, 1])
-            ax.set_title(f'P[{i+1},{j+1}] Phase')
-            fig.colorbar(im, ax=ax)
-    fig.suptitle(f'PRT Pupil Phase (deg) - {title_suffix}')
-    plt.savefig(filename + "_phase.png")
+            im_phase = ax_phase.imshow(phase, cmap='hsv', vmin=-180, vmax=180, extent=[-1, 1, -1, 1])
+            ax_phase.set_title(f'P[{i+1},{j+1}] Phase')
+            fig.colorbar(im_phase, ax=ax_phase)
+            
+    fig.suptitle(f'PRT Pupil Magnitude (log10) and Phase (deg) - {title_suffix}', fontsize=16)
+    # plt.savefig(filename + "_combined.png", bbox_inches='tight')
+    # plt.close(fig) # Close the figure to free up memory
 
+# Example Usage:
 plot_prt_pupil(PA_grid, "Lens (PA)", "PA")
 plot_prt_pupil(PB_grid, "Lens + M1 (PB)", "PB")
 plot_prt_pupil(PC_grid, "Lens + M1 + M2 (PC)", "PC")
@@ -221,6 +274,7 @@ k8_calc = pc_0 @ k1_0
 print(f"Test Ray 0: Expected k8 = {k8_0}")
 print(f"Test Ray 0: Calculated k8 = {k8_calc.real}")
 print(f"Difference: {np.linalg.norm(k8_0 - k8_calc.real)}")
+
 
 #%% 4 Calc DP for the input rays
 
@@ -285,7 +339,7 @@ for i in range(3):
 
 fig.suptitle("Double Pole Basis Matrix Elements (Input Rays)")
 plt.tight_layout()
-plt.savefig("double_pole_basis.png")
+# plt.savefig("double_pole_basis.png")
 
 # Verify orthnormality of one example (Ray 0)
 D0 = basis_matrices[0]
@@ -489,29 +543,99 @@ JA_g = prep_jones(JA_list)
 JB_g = prep_jones(JB_list)
 JC_g = prep_jones(JC_list)
 
-def plot_jones(grid, title, fname_prefix):
-    fig, axes = plt.subplots(2, 2, figsize=(8, 6))
-    for i in range(2):
-        for j in range(2):
-            ax = axes[i,j]
-            im = ax.imshow(np.abs(grid[i,j]), extent=[-1,1,-1,1], cmap='viridis')
-            ax.set_title(f'J[{i+1},{j+1}] Mag')
-            fig.colorbar(im, ax=ax)
-    fig.suptitle(f"Magnitude - {title}")
-    plt.tight_layout()
-    plt.savefig(f"{fname_prefix}_mag.png")
+# def plot_jones(grid, title, fname_prefix):
+#     fig, axes = plt.subplots(2, 2, figsize=(8, 6))
+#     for i in range(2):
+#         for j in range(2):
+#             ax = axes[i,j]
+#             im = ax.imshow(np.abs(grid[i,j]), extent=[-1,1,-1,1], cmap='viridis')
+#             ax.set_title(f'J[{i+1},{j+1}] Mag')
+#             fig.colorbar(im, ax=ax)
+#     fig.suptitle(f"Magnitude - {title}")
+#     plt.tight_layout()
+#     plt.savefig(f"{fname_prefix}_mag.png")
     
-    fig, axes = plt.subplots(2, 2, figsize=(8, 6))
+#     fig, axes = plt.subplots(2, 2, figsize=(8, 6))
+#     for i in range(2):
+#         for j in range(2):
+#             ax = axes[i,j]
+#             im = ax.imshow(np.angle(grid[i,j], deg=True), extent=[-1,1,-1,1], cmap='hsv', vmin=-180, vmax=180)
+#             ax.set_title(f'J[{i+1},{j+1}] Phase')
+#             fig.colorbar(im, ax=ax)
+#     fig.suptitle(f"Phase (deg) - {title}")
+#     plt.tight_layout()
+#     plt.savefig(f"{fname_prefix}_phase.png")
+
+# plot_jones(JA_g, "JA (Lens)", "JA")
+# plot_jones(JB_g, "JB (Lens+M1)", "JB")
+# plot_jones(JC_g, "JC (Lens+M1+M2)", "JC")
+
+# print("Jones pupil generation complete.")
+
+# def plot_jones(grid, title, fname_prefix):
+#     # Create a 2x4 grid: 2 rows, 4 columns (left 2 for mag, right 2 for phase)
+#     fig, axes = plt.subplots(2, 4, figsize=(16, 6))
+    
+#     for i in range(2):
+#         for j in range(2):
+#             # ---------------------------
+#             # 1. Plot Magnitude (Columns 0, 1)
+#             # ---------------------------
+#             ax_mag = axes[i, j]
+#             im_mag = ax_mag.imshow(np.abs(grid[i, j]), extent=[-1, 1, -1, 1], cmap='viridis')
+#             ax_mag.set_title(f'J[{i+1},{j+1}] Mag')
+#             fig.colorbar(im_mag, ax=ax_mag)
+            
+#             # ---------------------------
+#             # 2. Plot Phase (Columns 2, 3)
+#             # ---------------------------
+#             ax_phase = axes[i, j + 2]
+#             im_phase = ax_phase.imshow(np.angle(grid[i, j], deg=True), extent=[-1, 1, -1, 1], cmap='hsv', vmin=-180, vmax=180)
+#             ax_phase.set_title(f'J[{i+1},{j+1}] Phase')
+#             fig.colorbar(im_phase, ax=ax_phase)
+            
+#     fig.suptitle(f"Jones Pupil Magnitude and Phase - {title}", fontsize=16)
+#     plt.tight_layout()
+#     # plt.savefig(f"{fname_prefix}_combined.png", bbox_inches='tight')
+#     # plt.close(fig)  # Close the figure to free up memory
+
+# # Example Usage:
+# plot_jones(JA_g, "JA (Lens)", "JA")
+# plot_jones(JB_g, "JB (Lens+M1)", "JB")
+# plot_jones(JC_g, "JC (Lens+M1+M2)", "JC")
+
+# print("Jones pupil generation complete.")
+
+def plot_jones(grid, title, fname_prefix):
+    # Create a 2x4 grid: 2 rows, 4 columns (left 2 for mag, right 2 for phase)
+    fig, axes = plt.subplots(2, 4, figsize=(16, 6))
+    
     for i in range(2):
         for j in range(2):
-            ax = axes[i,j]
-            im = ax.imshow(np.angle(grid[i,j], deg=True), extent=[-1,1,-1,1], cmap='hsv', vmin=-180, vmax=180)
-            ax.set_title(f'J[{i+1},{j+1}] Phase')
-            fig.colorbar(im, ax=ax)
-    fig.suptitle(f"Phase (deg) - {title}")
+            # ---------------------------
+            # 1. Plot Magnitude (Columns 0, 1) in log10
+            # ---------------------------
+            ax_mag = axes[i, j]
+            # Calculate magnitude and apply log10 (with a small epsilon to prevent -inf)
+            mag = np.abs(grid[i, j])
+            im_mag = ax_mag.imshow(np.log10(mag + 1e-15), extent=[-1, 1, -1, 1], cmap='viridis')
+            ax_mag.set_title(f'J[{i+1},{j+1}] Mag (log10)')
+            fig.colorbar(im_mag, ax=ax_mag)
+            
+            # ---------------------------
+            # 2. Plot Phase (Columns 2, 3)
+            # ---------------------------
+            ax_phase = axes[i, j + 2]
+            im_phase = ax_phase.imshow(np.angle(grid[i, j], deg=True), extent=[-1, 1, -1, 1], cmap='hsv', vmin=-180, vmax=180)
+            ax_phase.set_title(f'J[{i+1},{j+1}] Phase')
+            fig.colorbar(im_phase, ax=ax_phase)
+            
+    fig.suptitle(f"Jones Pupil Magnitude (log10) and Phase - {title}", fontsize=16)
     plt.tight_layout()
-    plt.savefig(f"{fname_prefix}_phase.png")
+    # plt.savefig(f"{fname_prefix}_combined.png", bbox_inches='tight')
+    # plt.close(fig)  # Close the figure to free up memory
 
+# Example Usage:
 plot_jones(JA_g, "JA (Lens)", "JA")
 plot_jones(JB_g, "JB (Lens+M1)", "JB")
 plot_jones(JC_g, "JC (Lens+M1+M2)", "JC")
